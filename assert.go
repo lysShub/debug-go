@@ -9,86 +9,86 @@ import (
 	"syscall"
 )
 
-func NoError(err error, msg ...any) {
+func NoError(err error, msgAndArgs ...any) {
 	if err != nil {
-		fail(fmt.Sprintf("%+v", err), msg...)
+		fail(fmt.Sprintf("%+v", err), msgAndArgs...)
 	}
 }
-func True(v bool, msg ...any) {
+func True(v bool, msgAndArgs ...any) {
 	if !v {
-		fail("require true", msg...)
+		fail("require true", msgAndArgs...)
 	}
 }
-func False(v bool, msg ...any) {
+func False(v bool, msgAndArgs ...any) {
 	if v {
-		fail("require false", msg...)
+		fail("require false", msgAndArgs...)
 	}
 }
-func Equal[T comparable](v1, v2 T, msg ...any) {
+func Equal[T comparable](v1, v2 T, msgAndArgs ...any) {
 	if v1 != v2 {
-		fail(fmt.Sprintf("require %v == %v", v1, v2), msg...)
+		fail(fmt.Sprintf("require %v == %v", v1, v2), msgAndArgs...)
 	}
 }
-func NotEqual[T comparable](v1, v2 T, msg ...any) {
+func NotEqual[T comparable](v1, v2 T, msgAndArgs ...any) {
 	if v1 == v2 {
-		fail(fmt.Sprintf("require %v != %v", v1, v2), msg...)
+		fail(fmt.Sprintf("require %v != %v", v1, v2), msgAndArgs...)
 	}
 }
-func Zero[N number](v N, msg ...any) {
+func Zero[N number](v N, msgAndArgs ...any) {
 	if v != *new(N) {
-		fail(fmt.Sprintf("require zero get %+v", v), msg...)
+		fail(fmt.Sprintf("require zero get %+v", v), msgAndArgs...)
 	}
 }
-func NotZero[N number](v N, msg ...any) {
+func NotZero[N number](v N, msgAndArgs ...any) {
 	if v == *new(N) {
-		fail("require not zero", msg...)
+		fail("require not zero", msgAndArgs...)
 	}
 }
-func NotEmpty[T any](v T, msg ...any) {
+func NotEmpty[T any](v T, msgAndArgs ...any) {
 	if empty(v) {
-		fail("require not empty", msg...)
+		fail("require not empty", msgAndArgs...)
 	}
 }
-func Less[N number](v1, v2 N, msg ...any) {
+func Less[N number](v1, v2 N, msgAndArgs ...any) {
 	if v1 >= v2 {
-		fail(fmt.Sprintf("require %v < %v", v1, v2), msg...)
+		fail(fmt.Sprintf("require %v < %v", v1, v2), msgAndArgs...)
 	}
 }
-func Greater[N number](v1, v2 N, msg ...any) {
+func Greater[N number](v1, v2 N, msgAndArgs ...any) {
 	if v1 <= v2 {
-		fail(fmt.Sprintf("require %v > %v", v1, v2), msg...)
+		fail(fmt.Sprintf("require %v > %v", v1, v2), msgAndArgs...)
 	}
 }
-func LessOrEqual[N number](v1, v2 N, msg ...any) {
+func LessOrEqual[N number](v1, v2 N, msgAndArgs ...any) {
 	if v1 > v2 {
-		fail(fmt.Sprintf("require %v <= %v", v1, v2), msg...)
+		fail(fmt.Sprintf("require %v <= %v", v1, v2), msgAndArgs...)
 	}
 }
-func GreaterOrEqual[N number](v1, v2 N, msg ...any) {
+func GreaterOrEqual[N number](v1, v2 N, msgAndArgs ...any) {
 	if v1 < v2 {
-		fail(fmt.Sprintf("require %v >= %v", v1, v2), msg...)
+		fail(fmt.Sprintf("require %v >= %v", v1, v2), msgAndArgs...)
 	}
 }
-func Assert[T any](v any, msg ...any) {
+func Assert[T any](v any, msgAndArgs ...any) {
 	if _, ok := v.(T); !ok {
-		fail(fmt.Sprintf("require %T can assert to %T", v, *new(T)), msg...)
+		fail(fmt.Sprintf("require %T can assert to %T", v, *new(T)), msgAndArgs...)
 	}
 }
-func NotAssert[T any](v any, msg ...any) {
+func NotAssert[T any](v any, msgAndArgs ...any) {
 	if _, ok := v.(T); ok {
-		fail(fmt.Sprintf("require %T cannot assert to %T", v, *new(T)), msg...)
+		fail(fmt.Sprintf("require %T cannot assert to %T", v, *new(T)), msgAndArgs...)
 	}
 }
-func MapHas[K comparable, V any](m map[K]V, key K, msg ...any) {
+func MapHas[K comparable, V any](m map[K]V, key K, msgAndArgs ...any) {
 	_, has := m[key]
 	if !has {
-		fail(fmt.Sprintf("require map contain key %v", key), msg...)
+		fail(fmt.Sprintf("require map contain key %v", key), msgAndArgs...)
 	}
 }
-func MapNotHas[K comparable, V any](m map[K]V, key K, msg ...any) {
+func MapNotHas[K comparable, V any](m map[K]V, key K, msgAndArgs ...any) {
 	val, has := m[key]
 	if has {
-		fail(fmt.Sprintf("map contain key %v, val %v", key, val), msg...)
+		fail(fmt.Sprintf("map contain key %v, val %v", key, val), msgAndArgs...)
 	}
 }
 
@@ -117,17 +117,33 @@ func empty(v any) bool {
 		return reflect.DeepEqual(v, zero.Interface())
 	}
 }
-func fail(s string, msg ...any) {
+func fail(s string, msgAndArgs ...any) {
 	var b = &bytes.Buffer{}
 	fmt.Fprintln(b, s)
-	if len(msg) > 0 {
+	if len(msgAndArgs) > 0 {
 		fmt.Fprintln(b, "msg:")
-		fmt.Fprintln(b, msg...)
+		b.WriteString(messageFromMsgAndArgs(msgAndArgs...))
 	}
 	fmt.Fprintln(b, "stack:")
 	fmt.Fprintln(b, string(stdebug.Stack()))
 
 	Fail(b.String())
+}
+func messageFromMsgAndArgs(msgAndArgs ...interface{}) string {
+	if len(msgAndArgs) == 0 || msgAndArgs == nil {
+		return ""
+	}
+	if len(msgAndArgs) == 1 {
+		msg := msgAndArgs[0]
+		if msgAsStr, ok := msg.(string); ok {
+			return msgAsStr
+		}
+		return fmt.Sprintf("%+v", msg)
+	}
+	if len(msgAndArgs) > 1 {
+		return fmt.Sprintf(msgAndArgs[0].(string), msgAndArgs[1:]...)
+	}
+	return ""
 }
 
 var Fail = func(s string) {
